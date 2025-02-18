@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type cliCommand struct {
@@ -24,6 +25,7 @@ type config struct {
 
 var cfg config
 var commands map[string]cliCommand
+var cache Cache
 
 func commandExit(config *config) error {
 	println("Closing...")
@@ -45,21 +47,26 @@ func commandMap(config *config) error {
 		url = config.next
 	}
 
-	res, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
-	if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
-	}
-	if err != nil {
-		log.Fatal(err)
+	body, ok := cache.Get(url)
+	if !ok { // cache miss
+		println("miss")
+		res, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		body, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode > 299 {
+			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		cache.Add(url, body)
 	}
 
 	var pokemap PokeMap
-	if err = json.Unmarshal(body, &pokemap); err != nil {
+	if err := json.Unmarshal(body, &pokemap); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
 	cfg.next = pokemap.Next
@@ -77,21 +84,26 @@ func commandMapB(config *config) error {
 		url = config.previous
 	}
 
-	res, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
-	if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
-	}
-	if err != nil {
-		log.Fatal(err)
+	body, ok := cache.Get(url)
+	if !ok { // cache miss
+		println("miss")
+		res, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		body, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode > 299 {
+			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		cache.Add(url, body)
 	}
 
 	var pokemap PokeMap
-	if err = json.Unmarshal(body, &pokemap); err != nil {
+	if err := json.Unmarshal(body, &pokemap); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
 	cfg.next = pokemap.Next
@@ -112,6 +124,7 @@ func cleanInput(text string) []string {
 }
 
 func main() {
+	cache = NewCache(20 * time.Second)
 	commands = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
