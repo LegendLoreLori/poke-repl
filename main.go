@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -25,6 +28,29 @@ func commandHelp() error {
 	print("Poke-REPL provides a CLI to query pokeAPI to retreive pokedex information\n\nUsage:\n")
 	for _, v := range commands {
 		fmt.Printf("%s: %s\n", v.name, v.description)
+	}
+	return nil
+}
+func commandMap() error {
+
+	res, err := http.Get("https://pokeapi.co/api/v2/location-area/")
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode > 299 {
+		return fmt.Errorf("response failed with code: %d\n and body: %s\n", res.StatusCode, body)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	var pokemap PokeMap
+	if err = json.Unmarshal(body, &pokemap); err != nil {
+		return fmt.Errorf("error unmarshalling data: %w", err)
+	}
+	for i := 0; i < len(pokemap.Results); i++ {
+		println(pokemap.Results[i].Name)
 	}
 	return nil
 }
@@ -50,6 +76,11 @@ func main() {
 			name:        "help",
 			description: "Display this information",
 			callback:    commandHelp,
+		},
+		"map": {
+			name:        "map",
+			description: "Display a list of pokemon locations, ordered by ID, 20 at a time, each subsequent call of map will display the next 20 maps, use mapb to display the previous 20 maps",
+			callback:    commandMap,
 		},
 	}
 
