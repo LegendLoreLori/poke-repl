@@ -40,6 +40,7 @@ func TestCleanInput(t *testing.T) {
 	for _, c := range cases {
 		actual := cleanInput(c.input)
 		if len(actual) != len(c.expected) {
+			fail++
 			t.Errorf("-----------------\ninput: '%v'\nexpected: %v\nactual: %v\n", c.input, len(c.expected), len(actual))
 		}
 		for i := 0; i < len(actual); i++ {
@@ -48,11 +49,11 @@ func TestCleanInput(t *testing.T) {
 			if word != expectedWord {
 				fail++
 				t.Errorf("-----------------\ninput: '%v'\nexpected: %v\nactual: %v\n", c.input, c.expected, actual)
-			} else {
-				pass++
-				fmt.Printf("-----------------\ninput: '%v'\nexpected: %v\nactual: %v\n", c.input, c.expected, actual)
+				break
 			}
 		}
+		pass++
+		fmt.Printf("-----------------\ninput: '%v'\nexpected: %v\nactual: %v\n", c.input, c.expected, actual)
 	}
 	fmt.Printf("-----------------\npass: %v, fail: %v\n", pass, fail)
 }
