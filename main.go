@@ -42,14 +42,13 @@ func commandHelp(config *config) error {
 func commandMap(config *config) error {
 	var url string
 	if config.next == "" {
-		url = "https://pokeapi.co/api/v2/location-area/"
+		url = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
 	} else {
 		url = config.next
 	}
 
 	body, ok := cache.Get(url)
 	if !ok { // cache miss
-		println("miss")
 		res, err := http.Get(url)
 		if err != nil {
 			return err
@@ -62,8 +61,8 @@ func commandMap(config *config) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cache.Add(url, body)
 	}
+	cache.Add(url, body)
 
 	var pokemap PokeMap
 	if err := json.Unmarshal(body, &pokemap); err != nil {
@@ -79,14 +78,13 @@ func commandMap(config *config) error {
 func commandMapB(config *config) error {
 	var url string
 	if config.previous == "" {
-		url = "https://pokeapi.co/api/v2/location-area/"
+		url = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
 	} else {
 		url = config.previous
 	}
 
 	body, ok := cache.Get(url)
 	if !ok { // cache miss
-		println("miss")
 		res, err := http.Get(url)
 		if err != nil {
 			return err
@@ -99,8 +97,8 @@ func commandMapB(config *config) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cache.Add(url, body)
 	}
+	cache.Add(url, body)
 
 	var pokemap PokeMap
 	if err := json.Unmarshal(body, &pokemap); err != nil {
@@ -115,6 +113,9 @@ func commandMapB(config *config) error {
 }
 
 func cleanInput(text string) []string {
+	if text == "" {
+		return make([]string, 1)
+	}
 	sanitised := strings.Fields(strings.TrimSpace(text))
 	for i := 0; i < len(sanitised); i++ {
 		sanitised[i] = strings.ToLower(sanitised[i])

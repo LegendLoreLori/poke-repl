@@ -28,7 +28,7 @@ func TestCleanInput(t *testing.T) {
 		},
 		{
 			input:    "",
-			expected: []string{"TODO: implement err handling"},
+			expected: make([]string, 1),
 		},
 		{
 			input:    "Agumon",
