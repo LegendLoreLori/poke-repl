@@ -3,11 +3,13 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -15,7 +17,7 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*config) error
+	callback    func([]string, *config) error
 }
 
 type config struct {
@@ -27,19 +29,35 @@ var cfg config
 var commands map[string]cliCommand
 var cache Cache
 
-func commandExit(config *config) error {
-	println("Closing...")
+func commandExit(options []string, config *config) error {
+	println("closing...")
 	os.Exit(0)
 	return nil
 }
-func commandHelp(config *config) error {
-	print("Poke-REPL provides a CLI to query pokeAPI to retreive pokedex information\n\nUsage:\n")
-	for _, v := range commands {
-		fmt.Printf("%s: %s\n", v.name, v.description)
+func commandHelp(options []string, config *config) error {
+	if len(options) > 0 {
+		if v, ok := commands[options[0]]; ok {
+			fmt.Printf("%s: %s\n", v.name, v.description)
+			return nil
+		}
+		return fmt.Errorf("no help entry found for command: %s", options[0])
+	}
+
+	var keyOrder []string
+	for k := range commands {
+		keyOrder = append(keyOrder, k)
+	}
+	sort.Strings(keyOrder) // crappy sort implementation for now while i figure out a better way for ordering, probably just manual lol
+	for _, k := range keyOrder {
+		fmt.Printf("%s: %s\n", k, commands[k].description)
 	}
 	return nil
 }
-func commandMap(config *config) error {
+func commandMap(options []string, config *config) error {
+	if len(options) > 0 {
+		return fmt.Errorf("too many arguments, expecting 0, found: %v", options)
+	}
+
 	var url string
 	if config.next == "" {
 		url = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
@@ -75,7 +93,11 @@ func commandMap(config *config) error {
 	}
 	return nil
 }
-func commandMapB(config *config) error {
+func commandMapB(options []string, config *config) error {
+	if len(options) > 0 {
+		return fmt.Errorf("too many arguments, expecting 0, found: %v", options)
+	}
+
 	var url string
 	if config.previous == "" {
 		url = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
@@ -111,6 +133,17 @@ func commandMapB(config *config) error {
 	}
 	return nil
 }
+func commandExplore(options []string, config *config) error { // maybe update config?
+	if len(options) == 0 {
+		return errors.New("missing location argument")
+	}
+
+	url := "https://pokeapi.co/api/v2/location-area/"
+	location := strings.Join(options, "-")
+	url += location
+
+	return nil
+}
 
 func cleanInput(text string) []string {
 	if text == "" {
@@ -129,38 +162,47 @@ func main() {
 	commands = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
-			description: "Exit the program",
+			description: "exit the program",
 			callback:    commandExit,
 		},
 		"help": {
 			name:        "help",
-			description: "Display this information",
+			description: "display this information",
 			callback:    commandHelp,
 		},
 		"map": {
 			name:        "map",
-			description: "Display a list of pokemon locations, ordered by ID, 20 at a time, each subsequent call of map will display the next 20 maps, use mapb to display the previous 20 maps",
+			description: "display a list of pokemon locations, 20 at a time, each subsequent call of map will display the next 20 maps",
 			callback:    commandMap,
 		},
 		"mapb": {
 			name:        "mapb",
-			description: "Companion command to map, display a the previous list of pokemon location, ordered by ID, 20 at a time. If map hasn't been called prior this prints out the default 20 locations",
+			description: "companion command to map, display a the previous list of pokemon location, 20 at a time. If map hasn't been called prior this prints out the default 20 locations",
 			callback:    commandMapB,
+		},
+		"explore": {
+			name:        "explore",
+			description: "display a list of encountered pokemon in a given location",
+			callback:    commandExplore,
 		},
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
+		var args []string
 		fmt.Print("Pokedex > ")
 		scanner.Scan()
 		text := cleanInput(scanner.Text())
+		if len(text) > 1 {
+			args = append(args, text[1:]...)
+		}
 		command, ok := commands[text[0]]
 		if !ok {
-			fmt.Printf("Invalid command: '%s'\n", text[0])
+			fmt.Printf("invalid command: '%s'\n", text[0])
 			continue
 		}
-		if err := command.callback(&cfg); err != nil {
-			log.Fatal("error calling command: %w", err)
+		if err := command.callback(args, &cfg); err != nil {
+			fmt.Printf("error calling command %s: %s\n", text[0], err)
 		}
 
 	}
