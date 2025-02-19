@@ -53,7 +53,7 @@ func NewCache(interval time.Duration) Cache {
 	return cache
 }
 
-type PokeMap struct {
+type PokeMapResponse struct {
 	Count    int    `json:"count"`
 	Next     string `json:"next"`
 	Previous string `json:"previous"`
@@ -61,4 +61,17 @@ type PokeMap struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"results"`
+}
+
+type PokeMap struct { // expand with more fields later? encounter method etc
+	Location struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"location"`
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"pokemon"`
+	} `json:"pokemon_encounters"`
 }

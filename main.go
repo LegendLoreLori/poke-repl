@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -77,19 +76,19 @@ func commandMap(options []string, config *config) error {
 			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
 		}
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to read response body with error: %w", err)
 		}
 	}
 	cache.Add(url, body)
 
-	var pokemap PokeMap
-	if err := json.Unmarshal(body, &pokemap); err != nil {
+	var pokeMapRes PokeMapResponse
+	if err := json.Unmarshal(body, &pokeMapRes); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
-	cfg.next = pokemap.Next
-	cfg.previous = pokemap.Previous
-	for i := 0; i < len(pokemap.Results); i++ {
-		println(pokemap.Results[i].Name)
+	cfg.next = pokeMapRes.Next
+	cfg.previous = pokeMapRes.Previous
+	for i := 0; i < len(pokeMapRes.Results); i++ {
+		println(pokeMapRes.Results[i].Name)
 	}
 	return nil
 }
@@ -117,19 +116,19 @@ func commandMapB(options []string, config *config) error {
 			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
 		}
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to read response body with error: %w", err)
 		}
 	}
 	cache.Add(url, body)
 
-	var pokemap PokeMap
-	if err := json.Unmarshal(body, &pokemap); err != nil {
+	var pokeMapRes PokeMapResponse
+	if err := json.Unmarshal(body, &pokeMapRes); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
-	cfg.next = pokemap.Next
-	cfg.previous = pokemap.Previous
-	for i := 0; i < len(pokemap.Results); i++ {
-		println(pokemap.Results[i].Name)
+	cfg.next = pokeMapRes.Next
+	cfg.previous = pokeMapRes.Previous
+	for i := 0; i < len(pokeMapRes.Results); i++ {
+		println(pokeMapRes.Results[i].Name)
 	}
 	return nil
 }
@@ -142,6 +141,25 @@ func commandExplore(options []string, config *config) error { // maybe update co
 	location := strings.Join(options, "-")
 	url += location
 
+	var body []byte
+	res, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	body, err = io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode > 299 {
+		return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to read response body with error: %w", err)
+	}
+
+	var pokeMapData PokeMap
+	if err := json.Unmarshal(body, &pokeMapData); err != nil {
+		return fmt.Errorf("error unmarshalling data: %w", err)
+	}
+	fmt.Printf("%v\n", pokeMapData)
 	return nil
 }
 
