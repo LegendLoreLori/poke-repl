@@ -73,7 +73,7 @@ func commandMap(options []string, config *config) error {
 		body, err = io.ReadAll(res.Body)
 		res.Body.Close()
 		if res.StatusCode > 299 {
-			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
+			return fmt.Errorf("response failed with code: %d %s", res.StatusCode, body)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to read response body with error: %w", err)
@@ -113,7 +113,7 @@ func commandMapB(options []string, config *config) error {
 		body, err = io.ReadAll(res.Body)
 		res.Body.Close()
 		if res.StatusCode > 299 {
-			return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
+			return fmt.Errorf("response failed with code: %d %s", res.StatusCode, body)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to read response body with error: %w", err)
@@ -141,25 +141,31 @@ func commandExplore(options []string, config *config) error { // maybe update co
 	location := strings.Join(options, "-")
 	url += location
 
-	var body []byte
-	res, err := http.Get(url)
-	if err != nil {
-		return err
+	body, ok := cache.Get(location) // using location for now, maybe its better for consistency to use the built url?
+	if !ok {
+		res, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		body, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode > 299 {
+			return fmt.Errorf("response failed with code: %d %s for location: %s", res.StatusCode, body, location)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read response body with error: %w", err)
+		}
 	}
-	body, err = io.ReadAll(res.Body)
-	res.Body.Close()
-	if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with code: %d and body: %s", res.StatusCode, body)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to read response body with error: %w", err)
-	}
+	cache.Add(location, body)
 
 	var pokeMapData PokeMap
 	if err := json.Unmarshal(body, &pokeMapData); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
-	fmt.Printf("%v\n", pokeMapData)
+	fmt.Printf("Pokemon found in %s...\n", location)
+	for _, pokemon := range pokeMapData.PokemonEncounters {
+		fmt.Printf(" - %s\n", pokemon.Pokemon.Name)
+	}
 	return nil
 }
 
