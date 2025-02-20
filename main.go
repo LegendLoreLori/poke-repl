@@ -20,13 +20,15 @@ type cliCommand struct {
 }
 
 type config struct {
-	next     string
-	previous string
+	next       string
+	previous   string
+	currentMap PokeMap
 }
 
 var cfg config
 var commands map[string]cliCommand
 var cache Cache
+var pokedex [1025]Pokemon
 
 func commandExit(options []string, config *config) error {
 	println("closing...")
@@ -85,8 +87,8 @@ func commandMap(options []string, config *config) error {
 	if err := json.Unmarshal(body, &pokeMapRes); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
-	cfg.next = pokeMapRes.Next
-	cfg.previous = pokeMapRes.Previous
+	config.next = pokeMapRes.Next
+	config.previous = pokeMapRes.Previous
 	for i := 0; i < len(pokeMapRes.Results); i++ {
 		println(pokeMapRes.Results[i].Name)
 	}
@@ -125,8 +127,8 @@ func commandMapB(options []string, config *config) error {
 	if err := json.Unmarshal(body, &pokeMapRes); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
-	cfg.next = pokeMapRes.Next
-	cfg.previous = pokeMapRes.Previous
+	config.next = pokeMapRes.Next
+	config.previous = pokeMapRes.Previous
 	for i := 0; i < len(pokeMapRes.Results); i++ {
 		println(pokeMapRes.Results[i].Name)
 	}
@@ -162,10 +164,35 @@ func commandExplore(options []string, config *config) error { // maybe update co
 	if err := json.Unmarshal(body, &pokeMapData); err != nil {
 		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
+	config.currentMap = pokeMapData
 	fmt.Printf("Pokemon found in %s...\n", location)
 	for _, pokemon := range pokeMapData.PokemonEncounters {
 		fmt.Printf(" - %s\n", pokemon.Pokemon.Name)
 	}
+	return nil
+}
+func commandCatch(options []string, config *config) error {
+	var url string
+	if len(options) != 1 {
+		if len(options) > 1 {
+			return fmt.Errorf("too many arguments provided, expecting 1 found: %s", options)
+		} else {
+			return errors.New("missing pokemon name argument")
+		}
+	} else {
+		if config.currentMap.Location.Name == "" {
+			return errors.New("no location has been explored yet")
+		}
+		for _, p := range config.currentMap.PokemonEncounters {
+			if options[0] == p.Pokemon.Name {
+				url = p.Pokemon.URL
+			}
+		}
+		if url == "" {
+			return fmt.Errorf("%s isn't found in %s", options[0], config.currentMap.Location.Name)
+		}
+	}
+	fmt.Printf("found %s in %s\n", options[0], config.currentMap.Location.Name)
 	return nil
 }
 
@@ -206,8 +233,13 @@ func main() {
 		},
 		"explore": {
 			name:        "explore",
-			description: "display a list of encountered pokemon in a given location",
+			description: "display a list of encountered pokemon in a given location and set the current map to the explored location",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "attempt to catch a pokemon found in the current map",
+			callback:    commandCatch,
 		},
 	}
 

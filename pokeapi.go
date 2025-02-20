@@ -75,3 +75,48 @@ type PokeMap struct { // expand with more fields later? encounter method etc
 		} `json:"pokemon"`
 	} `json:"pokemon_encounters"`
 }
+
+type Pokemon struct {
+	caught  int
+	ID      int `json:"id"`
+	Height  int `json:"height"`
+	Weight  int `json:"weight"`
+	Species struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"species"`
+	Stats []struct {
+		BaseStat int `json:"base_stat"`
+		Effort   int `json:"effort"`
+		Stat     struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Slot int `json:"slot"`
+		Type struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"type"`
+	} `json:"types"`
+}
+
+// type PokedexEntry struct {
+// 	ID                   int    `json:"id"`
+// 	IsBaby               bool   `json:"is_baby"`
+// 	IsLegendary          bool   `json:"is_legendary"`
+// 	IsMythical           bool   `json:"is_mythical"`
+// 	Name                 string `json:"name"`
+// 	Shape struct {
+// 		Name string `json:"name"`
+// 		URL  string `json:"url"`
+// 	} `json:"shape"`
+// 	Varieties []struct {
+// 		IsDefault bool `json:"is_default"`
+// 		Pokemon   struct {
+// 			Name string `json:"name"`
+// 			URL  string `json:"url"`
+// 		} `json:"pokemon"`
+// 	} `json:"varieties"`
+// }
