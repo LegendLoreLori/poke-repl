@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -73,6 +75,11 @@ type PokeMap struct { // expand with more fields later? encounter method etc
 			Name string `json:"name"`
 			URL  string `json:"url"`
 		} `json:"pokemon"`
+		VersionDetails []struct {
+			Version struct {
+				Name string `json:"name"`
+			} `json:"version"`
+		} `json:"version_details"`
 	} `json:"pokemon_encounters"`
 }
 
@@ -123,8 +130,14 @@ type PokedexEntry struct {
 	} `json:"shape"`
 }
 
-func (p *PokedexEntry) PrintDexEntry(locale string, generation string) {
-	//
+func (p *PokedexEntry) GetDexEntry(locale string, generation string) (string, error) {
+	for _, entry := range p.FlavorTextEntries {
+		if entry.Language.Name == locale && entry.Version.Name == generation {
+			formattedEntry := strings.Join(strings.Fields(entry.FlavorText), " ")
+			return formattedEntry, nil
+		}
+	}
+	return "", fmt.Errorf("unable to locate pokedex entry with locale: %s version: %s", locale, generation)
 }
 
 type Pokeball struct {

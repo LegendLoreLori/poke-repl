@@ -25,6 +25,7 @@ type config struct {
 	baseCatchRate int
 	next          string
 	previous      string
+	locale        string
 	currentMap    PokeMap
 	pokedex       map[string]Pokemon
 	selectedBall  Pokeball
@@ -179,6 +180,7 @@ func commandExplore(options []string, config *config) error { // maybe update co
 func commandCatch(options []string, config *config) error {
 	var url string
 	var pokeName string
+	var latestVersion string
 	if len(options) != 1 {
 		if len(options) > 1 {
 			return fmt.Errorf("too many arguments provided, expecting 1 found: %s", options)
@@ -193,6 +195,7 @@ func commandCatch(options []string, config *config) error {
 			if options[0] == p.Pokemon.Name {
 				pokeName = options[0]
 				url = p.Pokemon.URL
+				latestVersion = p.VersionDetails[len(p.VersionDetails)-1].Version.Name
 			}
 		}
 		if url == "" {
@@ -257,7 +260,12 @@ func commandCatch(options []string, config *config) error {
 				return fmt.Errorf("error unmarshalling data: %w", err)
 			}
 			encounter.PokedexEntry = dexEntry
-			println(encounter.FlavorTextEntries[0].FlavorText)
+			str, err := encounter.GetDexEntry(config.locale, latestVersion)
+			if err != nil {
+				println("Error getting pokedex entry")
+			} else {
+				fmt.Printf("%q\n", str)
+			}
 		}
 		encounter.caught++
 	} else {
@@ -302,6 +310,7 @@ func cleanInput(text string) []string {
 func main() {
 	cache = NewCache(20 * time.Second)
 	cfg = config{
+		locale:        "en",
 		baseCatchRate: 20,
 		pokedex:       make(map[string]Pokemon),
 		pokeballs: [4]Pokeball{
