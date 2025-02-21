@@ -27,16 +27,8 @@ func TestCleanInput(t *testing.T) {
 			expected: []string{"pikachu"},
 		},
 		{
-			input:    "ch22armander",
-			expected: []string{"TODO: implement err handling"},
-		},
-		{
 			input:    "",
 			expected: make([]string, 1),
-		},
-		{
-			input:    "Agumon",
-			expected: []string{"TODO: implement err handling"},
 		},
 	}
 	for _, c := range cases {

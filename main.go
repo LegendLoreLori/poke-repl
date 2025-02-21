@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"sort"
@@ -20,15 +22,18 @@ type cliCommand struct {
 }
 
 type config struct {
-	next       string
-	previous   string
-	currentMap PokeMap
+	baseCatchRate int
+	next          string
+	previous      string
+	currentMap    PokeMap
+	pokedex       map[string]Pokemon
+	selectedBall  Pokeball
+	pokeballs     [4]Pokeball
 }
 
 var cfg config
 var commands map[string]cliCommand
 var cache Cache
-var pokedex [1025]Pokemon
 
 func commandExit(options []string, config *config) error {
 	println("closing...")
@@ -173,6 +178,7 @@ func commandExplore(options []string, config *config) error { // maybe update co
 }
 func commandCatch(options []string, config *config) error {
 	var url string
+	var pokeName string
 	if len(options) != 1 {
 		if len(options) > 1 {
 			return fmt.Errorf("too many arguments provided, expecting 1 found: %s", options)
@@ -185,15 +191,100 @@ func commandCatch(options []string, config *config) error {
 		}
 		for _, p := range config.currentMap.PokemonEncounters {
 			if options[0] == p.Pokemon.Name {
+				pokeName = options[0]
 				url = p.Pokemon.URL
 			}
 		}
 		if url == "" {
-			return fmt.Errorf("%s isn't found in %s", options[0], config.currentMap.Location.Name)
+			return fmt.Errorf("%s isn't found in %s", pokeName, config.currentMap.Location.Name)
 		}
 	}
-	fmt.Printf("found %s in %s\n", options[0], config.currentMap.Location.Name)
+
+	// check if caught already
+	encounter, ok := config.pokedex[pokeName]
+	if !ok {
+		res, err := http.Get(url) // else get pokemon encounter information
+		if err != nil {
+			return err
+		}
+		pokeBody, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode > 299 {
+			return fmt.Errorf("response failed with code: %d %s for url: %s", res.StatusCode, pokeBody, url)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read response body with error: %w", err)
+		}
+		if err := json.Unmarshal(pokeBody, &encounter); err != nil {
+			return fmt.Errorf("error unmarshalling data: %w", err)
+		}
+		config.pokedex[pokeName] = encounter
+	}
+	encounter.encountered++
+
+	catchRate := config.baseCatchRate + config.selectedBall.catchModifier
+	catchDifficulty := int(math.Min(float64(encounter.BaseExperience)*float64(255)/float64(340), 255.0)) // normalise catch rate to 0-255, yes this does result in blissey being as hard to catch as the legendaries
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	success := 0
+	fmt.Printf("throwing %s at %s!\n", config.selectedBall.name, pokeName)
+	for i := 0; i < 3; i++ {
+		if r.Intn(catchDifficulty) <= catchRate {
+			success++
+		}
+		time.Sleep(1 * time.Second)
+		print(".")
+	}
+
+	if success >= 3 {
+		fmt.Printf("\ncaught %s!\n", encounter.Species.Name)
+		if encounter.caught == 0 {
+			println("adding to pokedex...")
+			res, err := http.Get(encounter.Species.URL) // get pokedex information
+			if err != nil {
+				return err
+			}
+			dexBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if res.StatusCode > 299 {
+				return fmt.Errorf("response failed with code: %d %s for url: %s", res.StatusCode, dexBody, url)
+			}
+			if err != nil {
+				return fmt.Errorf("failed to retrieve pokedex information: %w", err)
+			}
+
+			var dexEntry PokedexEntry
+			if err := json.Unmarshal(dexBody, &dexEntry); err != nil {
+				return fmt.Errorf("error unmarshalling data: %w", err)
+			}
+			encounter.PokedexEntry = dexEntry
+			println(encounter.FlavorTextEntries[0].FlavorText)
+		}
+		encounter.caught++
+	} else {
+		fmt.Printf("\nit got away...\n")
+	}
+	config.pokedex[pokeName] = encounter
+
 	return nil
+}
+func commandSelect(options []string, config *config) error {
+	if len(options) < 1 || len(options) > 2 {
+		if len(options) > 2 {
+			return fmt.Errorf("too many arguments provided, expecting 1-2 found: %s", options)
+		} else {
+			return errors.New("missing pokeball argument")
+		}
+	} else {
+		for _, ball := range config.pokeballs {
+			arg := strings.Join(options[0:], " ")
+			if arg == ball.name {
+				config.selectedBall = ball
+				fmt.Printf("%s equipped\n", arg)
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("cannot understand argument, please select from:\n%s\n%s\n%s\n%s", config.pokeballs[0].name, config.pokeballs[1].name, config.pokeballs[2].name, config.pokeballs[3].name)
 }
 
 func cleanInput(text string) []string {
@@ -210,6 +301,17 @@ func cleanInput(text string) []string {
 
 func main() {
 	cache = NewCache(20 * time.Second)
+	cfg = config{
+		baseCatchRate: 20,
+		pokedex:       make(map[string]Pokemon),
+		pokeballs: [4]Pokeball{
+			{20, "pokeball"},
+			{35, "great ball"},
+			{55, "ultra ball"},
+			{255, "master ball"},
+		},
+	}
+	cfg.selectedBall = cfg.pokeballs[0]
 	commands = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
@@ -241,6 +343,11 @@ func main() {
 			description: "attempt to catch a pokemon found in the current map",
 			callback:    commandCatch,
 		},
+		"select": {
+			name:        "select",
+			description: "select a pokeball from your inventory to use when attempting to catch pokemon",
+			callback:    commandSelect,
+		},
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -260,6 +367,5 @@ func main() {
 		if err := command.callback(args, &cfg); err != nil {
 			fmt.Printf("error calling command %s: %s\n", text[0], err)
 		}
-
 	}
 }

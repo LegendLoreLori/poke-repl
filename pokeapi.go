@@ -77,11 +77,11 @@ type PokeMap struct { // expand with more fields later? encounter method etc
 }
 
 type Pokemon struct {
-	caught  int
-	ID      int `json:"id"`
-	Height  int `json:"height"`
-	Weight  int `json:"weight"`
-	Species struct {
+	ID             int `json:"id"`
+	Height         int `json:"height"`
+	Weight         int `json:"weight"`
+	BaseExperience int `json:"base_experience"`
+	Species        struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"species"`
@@ -90,33 +90,44 @@ type Pokemon struct {
 		Effort   int `json:"effort"`
 		Stat     struct {
 			Name string `json:"name"`
-			URL  string `json:"url"`
 		} `json:"stat"`
 	} `json:"stats"`
 	Types []struct {
 		Slot int `json:"slot"`
 		Type struct {
 			Name string `json:"name"`
-			URL  string `json:"url"`
 		} `json:"type"`
 	} `json:"types"`
+	PokedexEntry
 }
 
-// type PokedexEntry struct {
-// 	ID                   int    `json:"id"`
-// 	IsBaby               bool   `json:"is_baby"`
-// 	IsLegendary          bool   `json:"is_legendary"`
-// 	IsMythical           bool   `json:"is_mythical"`
-// 	Name                 string `json:"name"`
-// 	Shape struct {
-// 		Name string `json:"name"`
-// 		URL  string `json:"url"`
-// 	} `json:"shape"`
-// 	Varieties []struct {
-// 		IsDefault bool `json:"is_default"`
-// 		Pokemon   struct {
-// 			Name string `json:"name"`
-// 			URL  string `json:"url"`
-// 		} `json:"pokemon"`
-// 	} `json:"varieties"`
-// }
+type PokedexEntry struct {
+	caught            int
+	encountered       int
+	IsLegendary       bool `json:"is_legendary"`
+	IsMythical        bool `json:"is_mythical"`
+	FlavorTextEntries []struct {
+		FlavorText string `json:"flavor_text"`
+		Language   struct {
+			Name string `json:"name"`
+		} `json:"language"`
+		Version struct {
+			Name string `json:"name"`
+		} `json:"version"`
+	} `json:"flavor_text_entries"`
+	Color struct {
+		Name string `json:"name"`
+	} `json:"color"`
+	Shape struct {
+		Name string `json:"name"`
+	} `json:"shape"`
+}
+
+func (p *PokedexEntry) PrintDexEntry(locale string, generation string) {
+	//
+}
+
+type Pokeball struct {
+	catchModifier int
+	name          string
+}
