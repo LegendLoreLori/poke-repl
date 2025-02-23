@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -198,9 +199,9 @@ func commandCatch(options []string, config *config) error {
 		if config.currentMap.Location.Name == "" {
 			return errors.New("no location has been explored yet")
 		}
+		pokeName = options[0]
 		for _, p := range config.currentMap.PokemonEncounters {
-			if options[0] == p.Pokemon.Name {
-				pokeName = options[0]
+			if pokeName == p.Pokemon.Name {
 				url = p.Pokemon.URL
 				latestVersion = p.VersionDetails[len(p.VersionDetails)-1].Version.Name
 			}
@@ -241,7 +242,7 @@ func commandCatch(options []string, config *config) error {
 		if r.Intn(catchDifficulty) <= catchRate {
 			success++
 		}
-		time.Sleep(1 * time.Nanosecond) // DEBUG FIX FIX FIX FIX FIX
+		time.Sleep(1 * time.Second)
 		print(".")
 	}
 
@@ -304,9 +305,34 @@ func commandSelect(options []string, config *config) error {
 }
 func commandPokedex(options []string, config *config) error {
 	if len(options) == 0 {
-		return errors.New("missing name argument")
+		var pokedexEntries []Pokemon
+		w := new(tabwriter.Writer)
+		w.Init(os.Stdout, 0, 3, 1, ' ', 0)
+
+		for _, v := range config.pokedex {
+			pokedexEntries = append(pokedexEntries, v)
+		}
+		slices.SortFunc(pokedexEntries, func(a, b Pokemon) int {
+			if a.ID < b.ID {
+				return -1
+			}
+			if a.ID > b.ID {
+				return 1
+			}
+			return 0
+		})
+		for _, entry := range pokedexEntries {
+			fmt.Fprintf(w, "#%04d\t%s\tencountered: %d\tcaught: %d\t\n", entry.ID, entry.Species.Name, entry.encountered, entry.caught)
+		}
+
+		w.Flush()
+
+		return nil
 	}
 
+	if len(options) > 1 {
+		return errors.New("too many arguments, expecting 0-1")
+	}
 	name := options[0]
 	pokemon, ok := config.pokedex[name]
 	if !ok {
