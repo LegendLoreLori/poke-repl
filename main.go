@@ -266,9 +266,9 @@ func commandCatch(options []string, config *config) error {
 			if err := json.Unmarshal(dexBody, &dexEntry); err != nil {
 				return fmt.Errorf("error unmarshalling data: %w", err)
 			}
-			dexEntry.encountered = encounter.encountered // prevents a bug wherein encountered is overwritten to 0
-			encounter.PokedexEntry = dexEntry            // TODO: add to dex method
-			str, err := encounter.GetDexEntry(config.locale, latestVersion)
+			encounter.AddDexEntry(config.locale, &dexEntry)
+
+			str, err := encounter.GetDexEntry(latestVersion)
 			if err != nil {
 				println("Error getting pokedex entry")
 			} else {
@@ -279,8 +279,6 @@ func commandCatch(options []string, config *config) error {
 	} else {
 		fmt.Printf("\nit got away...\n")
 	}
-	print("already in dex/after added ")
-	println(encounter.encountered)
 	config.pokedex[pokeName] = encounter
 
 	return nil

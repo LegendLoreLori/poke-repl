@@ -111,18 +111,10 @@ type Pokemon struct {
 type PokedexEntry struct {
 	caught            int
 	encountered       int
-	IsLegendary       bool `json:"is_legendary"`
-	IsMythical        bool `json:"is_mythical"`
-	FlavorTextEntries []struct {
-		FlavorText string `json:"flavor_text"`
-		Language   struct {
-			Name string `json:"name"`
-		} `json:"language"`
-		Version struct {
-			Name string `json:"name"`
-		} `json:"version"`
-	} `json:"flavor_text_entries"`
-	Color struct {
+	IsLegendary       bool              `json:"is_legendary"`
+	IsMythical        bool              `json:"is_mythical"`
+	FlavorTextEntries []FlavorTextEntry `json:"flavor_text_entries"`
+	Color             struct {
 		Name string `json:"name"`
 	} `json:"color"`
 	Shape struct {
@@ -130,14 +122,42 @@ type PokedexEntry struct {
 	} `json:"shape"`
 }
 
-func (p *PokedexEntry) GetDexEntry(locale string, generation string) (string, error) {
+type FlavorTextEntry struct {
+	FlavorText string `json:"flavor_text"`
+	Language   struct {
+		Name string `json:"name"`
+	} `json:"language"`
+	Version struct {
+		Name string `json:"name"`
+	} `json:"version"`
+}
+
+func (p *Pokemon) AddDexEntry(locale string, entry *PokedexEntry) error {
+	var filteredEntries []FlavorTextEntry
+	entry.encountered = p.encountered
+	for _, entry := range entry.FlavorTextEntries {
+		if entry.Language.Name == locale {
+			filteredEntries = append(filteredEntries, entry)
+		}
+	}
+	if len(filteredEntries) == 0 {
+		p.PokedexEntry = *entry
+		return fmt.Errorf("unable to find entries matching given locale: %s, assigning default", locale)
+	}
+	entry.FlavorTextEntries = filteredEntries
+	p.PokedexEntry = *entry
+
+	return nil
+}
+
+func (p *PokedexEntry) GetDexEntry(generation string) (string, error) {
 	for _, entry := range p.FlavorTextEntries {
-		if entry.Language.Name == locale && entry.Version.Name == generation {
+		if entry.Version.Name == generation {
 			formattedEntry := strings.Join(strings.Fields(entry.FlavorText), " ")
 			return formattedEntry, nil
 		}
 	}
-	return "", fmt.Errorf("unable to locate pokedex entry with locale: %s version: %s", locale, generation)
+	return "", fmt.Errorf("unable to locate pokedex entry with version: %s", generation)
 }
 
 type Pokeball struct {
