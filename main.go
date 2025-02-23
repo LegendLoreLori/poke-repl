@@ -266,7 +266,8 @@ func commandCatch(options []string, config *config) error {
 			if err := json.Unmarshal(dexBody, &dexEntry); err != nil {
 				return fmt.Errorf("error unmarshalling data: %w", err)
 			}
-			encounter.PokedexEntry = dexEntry
+			dexEntry.encountered = encounter.encountered // prevents a bug wherein encountered is overwritten to 0
+			encounter.PokedexEntry = dexEntry            // TODO: add to dex method
 			str, err := encounter.GetDexEntry(config.locale, latestVersion)
 			if err != nil {
 				println("Error getting pokedex entry")
@@ -278,6 +279,8 @@ func commandCatch(options []string, config *config) error {
 	} else {
 		fmt.Printf("\nit got away...\n")
 	}
+	print("already in dex/after added ")
+	println(encounter.encountered)
 	config.pokedex[pokeName] = encounter
 
 	return nil
@@ -300,6 +303,21 @@ func commandSelect(options []string, config *config) error {
 		}
 	}
 	return fmt.Errorf("cannot understand argument, please select from:\n%s\n%s\n%s\n%s", config.pokeballs[0].name, config.pokeballs[1].name, config.pokeballs[2].name, config.pokeballs[3].name)
+}
+func commandPokedex(options []string, config *config) error {
+	if len(options) == 0 {
+		return errors.New("missing location argument")
+	}
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 4, 1, ' ', 0)
+	name := options[0]
+	pokemon, ok := config.pokedex[name]
+	if !ok {
+		return fmt.Errorf("missing entry for %s", name)
+	}
+
+	fmt.Printf("caught %d, encountered %d, name %s\n", pokemon.caught, pokemon.encountered, pokemon.Species.Name)
+	return nil
 }
 
 func cleanInput(text string) []string {
@@ -363,6 +381,11 @@ func main() {
 			name:        "select",
 			description: "select a pokeball to use when attempting to catch pokemon",
 			callback:    commandSelect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "get the pokedex entry of a selected pokemon",
+			callback:    commandPokedex,
 		},
 	}
 
