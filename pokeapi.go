@@ -114,6 +114,7 @@ type PokedexEntry struct {
 	IsLegendary       bool              `json:"is_legendary"`
 	IsMythical        bool              `json:"is_mythical"`
 	FlavorTextEntries []FlavorTextEntry `json:"flavor_text_entries"`
+	Genera            []Genus           `json:"genera"`
 	Color             struct {
 		Name string `json:"name"`
 	} `json:"color"`
@@ -132,26 +133,41 @@ type FlavorTextEntry struct {
 	} `json:"version"`
 }
 
+type Genus struct {
+	Genus    string `json:"genus"`
+	Language struct {
+		Name string `json:"name"`
+	} `json:"language"`
+}
+
 func (p *Pokemon) AddDexEntry(locale string, entry *PokedexEntry) error {
 	var filteredEntries []FlavorTextEntry
+	var filteredGenera []Genus
 	entry.encountered = p.encountered
 	for _, entry := range entry.FlavorTextEntries {
 		if entry.Language.Name == locale {
 			filteredEntries = append(filteredEntries, entry)
 		}
 	}
-	if len(filteredEntries) == 0 {
+	for _, genus := range entry.Genera {
+		if genus.Language.Name == locale {
+			filteredGenera = append(filteredGenera, genus)
+		}
+	}
+
+	if len(filteredEntries) == 0 || len(filteredGenera) == 0 {
 		p.PokedexEntry = *entry
 		return fmt.Errorf("unable to find entries matching given locale: %s, assigning default", locale)
 	}
 	entry.FlavorTextEntries = filteredEntries
+	entry.Genera = filteredGenera
 	p.PokedexEntry = *entry
 
 	return nil
 }
 
-func (p *PokedexEntry) GetDexEntry(generation string) (string, error) {
-	for _, entry := range p.FlavorTextEntries {
+func (pe *PokedexEntry) GetFlavorText(generation string) (string, error) {
+	for _, entry := range pe.FlavorTextEntries {
 		if entry.Version.Name == generation {
 			formattedEntry := strings.Join(strings.Fields(entry.FlavorText), " ")
 			return formattedEntry, nil

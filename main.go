@@ -241,7 +241,7 @@ func commandCatch(options []string, config *config) error {
 		if r.Intn(catchDifficulty) <= catchRate {
 			success++
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Nanosecond) // DEBUG FIX FIX FIX FIX FIX
 		print(".")
 	}
 
@@ -268,7 +268,7 @@ func commandCatch(options []string, config *config) error {
 			}
 			encounter.AddDexEntry(config.locale, &dexEntry)
 
-			str, err := encounter.GetDexEntry(latestVersion)
+			str, err := encounter.GetFlavorText(latestVersion)
 			if err != nil {
 				println("Error getting pokedex entry")
 			} else {
@@ -304,17 +304,26 @@ func commandSelect(options []string, config *config) error {
 }
 func commandPokedex(options []string, config *config) error {
 	if len(options) == 0 {
-		return errors.New("missing location argument")
+		return errors.New("missing name argument")
 	}
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 4, 1, ' ', 0)
+
 	name := options[0]
 	pokemon, ok := config.pokedex[name]
 	if !ok {
 		return fmt.Errorf("missing entry for %s", name)
 	}
 
-	fmt.Printf("caught %d, encountered %d, name %s\n", pokemon.caught, pokemon.encountered, pokemon.Species.Name)
+	fmt.Printf("#%04d %s the %s\n", pokemon.ID, pokemon.Species.Name, pokemon.Genera[0].Genus)
+	fmt.Printf("encountered: %d caught: %d\n", pokemon.encountered, pokemon.caught)
+	println("stats:")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf("\t- %s %d\n", stat.Stat.Name, stat.BaseStat)
+	}
+	version := pokemon.FlavorTextEntries[len(pokemon.FlavorTextEntries)-1].Version.Name // I should come up with a better way to do this
+	fmt.Printf("pokedex entry for version: %s\n", version)
+	entry, _ := pokemon.GetFlavorText(version)
+	println(entry)
+
 	return nil
 }
 
