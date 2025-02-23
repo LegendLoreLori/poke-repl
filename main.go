@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -42,9 +43,13 @@ func commandExit(options []string, config *config) error {
 	return nil
 }
 func commandHelp(options []string, config *config) error {
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 3, 1, ' ', 0)
+
 	if len(options) > 0 {
 		if v, ok := commands[options[0]]; ok {
-			fmt.Printf("%s: %s\n", v.name, v.description)
+			fmt.Fprintf(w, "%s:\t%s\t\n", v.name, v.description)
+			w.Flush()
 			return nil
 		}
 		return fmt.Errorf("no help entry found for command: %s", options[0])
@@ -54,10 +59,12 @@ func commandHelp(options []string, config *config) error {
 	for k := range commands {
 		keyOrder = append(keyOrder, k)
 	}
-	sort.Strings(keyOrder) // crappy sort implementation for now while i figure out a better way for ordering, probably just manual lol
+	sort.Strings(keyOrder)
 	for _, k := range keyOrder {
-		fmt.Printf("%s: %s\n", k, commands[k].description)
+		fmt.Fprintf(w, "%s:\t%s\t\n", k, commands[k].description)
 	}
+	w.Flush()
+
 	return nil
 }
 func commandMap(options []string, config *config) error {
@@ -334,17 +341,17 @@ func main() {
 		},
 		"map": {
 			name:        "map",
-			description: "display a list of pokemon locations, 20 at a time, each subsequent call of map will display the next 20 maps",
+			description: "display the next 20 locations",
 			callback:    commandMap,
 		},
 		"mapb": {
 			name:        "mapb",
-			description: "companion command to map, display a the previous list of pokemon location, 20 at a time. If map hasn't been called prior this prints out the default 20 locations",
+			description: "display the previous 20 locations",
 			callback:    commandMapB,
 		},
 		"explore": {
 			name:        "explore",
-			description: "display a list of encountered pokemon in a given location and set the current map to the explored location",
+			description: "display a list of encountered pokemon in a given location",
 			callback:    commandExplore,
 		},
 		"catch": {
@@ -354,7 +361,7 @@ func main() {
 		},
 		"select": {
 			name:        "select",
-			description: "select a pokeball from your inventory to use when attempting to catch pokemon",
+			description: "select a pokeball to use when attempting to catch pokemon",
 			callback:    commandSelect,
 		},
 	}
